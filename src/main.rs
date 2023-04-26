@@ -1,4 +1,3 @@
-use common_structs::RGBCanvas;
 use fltk::{
     app::{self, App},
     enums::{self, Color, ColorDepth, Event, FrameType},
@@ -6,7 +5,7 @@ use fltk::{
     prelude::*,
     *,
 };
-use rand::random;
+use rand::{random, Rng};
 use state::State;
 
 use crate::{circle::Circle, common_structs::RGBColor};
@@ -15,7 +14,7 @@ mod common_structs;
 mod state;
 mod circle;
 
-const WIND_LABEL: &str = "Graphics Generator";
+const WIND_LABEL: &str = "Floating Objects";
 // const WIND_WIDTH: i32 = 1820;
 const WIND_WIDTH: i32 = 800;
 // const WIND_HEIGHT: i32 = 1000;
@@ -32,7 +31,6 @@ const MENU_HEIGHT: i32 = 32;
 #[derive(Clone)]
 enum Message {
     Quit,
-    ImageEvent,
     AddCircleButEv,
     RemoveCircleButEv,
     WBev,
@@ -43,6 +41,7 @@ enum Message {
     MouseDrag(i32, i32),
     MouseMove(i32, i32),
     MouseReleased(i32, i32),
+    Tick,
 }
 
 enum Colour {
@@ -52,11 +51,13 @@ enum Colour {
     White,
 }
 
+
 fn main() {
+    let mut rng = rand::thread_rng();
     let mut world_state: State = state::State::new(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT);
 
-
     let application: App = app::App::default();
+
     let (s, r) = app::channel();
 
     let mut wind = window::Window::new(0, 0, WIND_WIDTH, WIND_HEIGHT, WIND_LABEL);
@@ -88,25 +89,15 @@ fn main() {
         )
         .with_size(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT);
 
-    let mut image_data: RGBCanvas = world_state.render();
-    let mut image: RgbImage = RgbImage::new(
-        &image_data.data,
-        image_data.width as i32,
-        image_data.height as i32,
-        ColorDepth::Rgb8,
-    )
-    .unwrap();
-    image_frame.set_image(Some(image));
-    image_frame.emit(s.clone(), Message::ImageEvent);
-
-    /* let _side_panel_title_frame = frame::Frame::default()
+    // this should intercept mouse events
+    let mut ghost_frame = frame::Frame::default()
         .with_pos(
-            MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
-            MENU_HEIGHT + MAIN_IMAGE_Y_POS,
+            MAIN_IMAGE_X_POS + MAIN_IMAGE_FRAME_THICKNESS,
+            MAIN_IMAGE_Y_POS + MAIN_IMAGE_FRAME_THICKNESS + MENU_HEIGHT,
         )
-        .with_size(200, 40)
-        .with_label("Change background color:");
- */
+        .with_size(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT);
+    
+
     let mut b_add_circle = button::Button::new(
         MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
         MENU_HEIGHT + MAIN_IMAGE_Y_POS,
@@ -125,9 +116,17 @@ fn main() {
     );
     b_remove_circle.emit(s.clone(), Message::RemoveCircleButEv);
 
-    /* let mut b_white = button::Button::new(
+    let _change_color_title_frame = frame::Frame::default()
+        .with_pos(
+            MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
+            MENU_HEIGHT + MAIN_IMAGE_Y_POS + 100,
+        )
+        .with_size(200, 40)
+        .with_label("Change background color:");
+
+    let mut b_white = button::Button::new(
         MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 50,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 150,
         40,
         40,
         "",
@@ -137,7 +136,7 @@ fn main() {
 
     let mut b_grey = button::Button::new(
         MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20 + (40 + 20) * 1,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 50,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 150,
         40,
         40,
         "",
@@ -147,7 +146,7 @@ fn main() {
 
     let mut b_light_grey = button::Button::new(
         MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20 + (40 + 20) * 2,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 50,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 150,
         40,
         40,
         "",
@@ -157,48 +156,91 @@ fn main() {
 
     let mut b_black = button::Button::new(
         MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20 + (40 + 20) * 3,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 50,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 150,
         40,
         40,
         "",
     );
     b_black.set_color(Color::Black);
-    b_black.emit(s.clone(), Message::BBev); */
+    b_black.emit(s.clone(), Message::BBev);
+
+    /* let mut b_step = button::Button::new(
+        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 200,
+        200,
+        40,
+        "Progress one time step",
+    );
+    b_step.emit(s.clone(), Message::Step);
+
+    let mut b_start = button::Button::new(
+        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 250,
+        200,
+        40,
+        "Start animation",
+    );
+    b_start.emit(s.clone(), Message::Start);
+
+    let mut b_stop = button::Button::new(
+        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
+        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 300,
+        200,
+        40,
+        "Stop animation",
+    );
+    b_stop.emit(s.clone(), Message::Stop); */
 
     wind.end();
     wind.show();
 
-    image_frame.handle(move |_, event: Event| match event {
-        Event::Push => {
-            let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
-            let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-            s.send(Message::MouseDown(x, y));
-            true
-        }
-        Event::Drag => {
-            let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
-            let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-            if x >= 0 && x < MAIN_IMAGE_WIDTH && y >= 0 && y < MAIN_IMAGE_HEIGHT {
-                s.send(Message::MouseDrag(x, y));
+    let callback_sender = s.clone();
+    
+    let callback = move |handle| {
+        callback_sender.send(Message::Tick);
+        
+        app::repeat_timeout3(0.033, handle);
+    };
+    
+
+    let ghost_frame_handle_sender = s.clone();
+    ghost_frame.handle(move |_, event: Event| {
+        match event {
+            Event::Push => {
+                let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
+                let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
+                ghost_frame_handle_sender.send(Message::MouseDown(x, y));
+                true
             }
-            true
-        }
-        Event::Released => {
-            let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
-            let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-            s.send(Message::MouseReleased(x, y));
-            true
-        }
-        Event::Move => {
-            let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
-            let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-            if x >= 0 && x < MAIN_IMAGE_WIDTH && y >= 0 && y < MAIN_IMAGE_HEIGHT {
-                s.send(Message::MouseMove(x, y));
+            Event::Drag => {
+                let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
+                let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
+                if x >= 0 && x < MAIN_IMAGE_WIDTH && y >= 0 && y < MAIN_IMAGE_HEIGHT {
+                    ghost_frame_handle_sender.send(Message::MouseDrag(x, y));
+                }
+                true
             }
-            true
+            Event::Released => {
+                let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
+                let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
+                ghost_frame_handle_sender.send(Message::MouseReleased(x, y));
+                true
+            }
+            Event::Move => {
+                let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
+                let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
+                if x >= 0 && x < MAIN_IMAGE_WIDTH && y >= 0 && y < MAIN_IMAGE_HEIGHT {
+                    ghost_frame_handle_sender.send(Message::MouseMove(x, y));
+                }
+                true
+            }
+            _ => false,
         }
-        _ => false,
     });
+
+    
+
+    app::add_timeout3(0.033, callback);
 
     while application.wait() {
         if let Some(msg) = r.recv() {
@@ -207,9 +249,6 @@ fn main() {
                     println!("quitting the app...");
                     fltk::app::quit();
                 }
-                Message::ImageEvent => {
-                    println!("some event on image...");
-                }
                 Message::AddCircleButEv => {
                     println!("Adding circle...");
 
@@ -217,8 +256,10 @@ fn main() {
                         String::from("circle"),
                         (MAIN_IMAGE_WIDTH / 2) as f32,
                         (MAIN_IMAGE_HEIGHT / 2) as f32,
-                        50.0,
-                        20.0,
+                        rng.gen_range(-2.0..2.0),
+                        rng.gen_range(-2.0..2.0),
+                        rng.gen_range(15.0..25.0),
+                        rng.gen_range(3.0..12.0),
                         1.0,
                         RGBColor {
                             r: random(),
@@ -231,157 +272,49 @@ fn main() {
                             b: random(),
                         },
                     ));
-                    image_data = world_state.render();
-                    image = RgbImage::new(
-                        &image_data.data,
-                        image_data.width as i32,
-                        image_data.height as i32,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
                 }
                 Message::RemoveCircleButEv => {
                     println!("Removing circle...");
 
                     world_state.remove_circle();
-                    image_data = world_state.render();
-                    image = RgbImage::new(
-                        &image_data.data,
-                        image_data.width as i32,
-                        image_data.height as i32,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
                 }
-                /* Message::WBev => {
-                    image_data = generate_image_background(
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        Colour::White,
+                Message::WBev => {
+                    println!("Change background to White.");
+                    world_state.replace_background(
+                        generate_image_background(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT, Colour::White)
                     );
-                    image = RgbImage::new(
-                        &image_data,
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
                 }
                 Message::LGBev => {
-                    image_data = generate_image_background(
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        Colour::LightGrey,
+                    println!("Change background to Light Grey.");
+                    world_state.replace_background(
+                        generate_image_background(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT, Colour::LightGrey)
                     );
-                    image = RgbImage::new(
-                        &image_data,
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
                 }
                 Message::GBev => {
-                    image_data = generate_image_background(
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        Colour::Grey,
+                    println!("Change background to Grey.");
+                    world_state.replace_background(
+                        generate_image_background(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT, Colour::Grey)
                     );
-                    image = RgbImage::new(
-                        &image_data,
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
                 }
                 Message::BBev => {
-                    image_data = generate_image_background(
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        Colour::Black,
+                    println!("Change background to Black.");
+                    world_state.replace_background(
+                        generate_image_background(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT, Colour::Black)
                     );
-                    image = RgbImage::new(
-                        &image_data,
-                        MAIN_IMAGE_WIDTH,
-                        MAIN_IMAGE_HEIGHT,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
-                } */
+                }
+                Message::Tick => {
+                    redraw_image(&mut world_state, &mut image_frame);
+                }
                 Message::MouseDown(x, y) => {
                     println!("The image was clicked at coordinates x={}, y={}", x, y);
 
                     world_state.select_circle(x, y);
-                    image_data = world_state.render();
-                    image = RgbImage::new(
-                        &image_data.data,
-                        image_data.width as i32,
-                        image_data.height as i32,
-                        ColorDepth::Rgb8,
-                    )
-                    .unwrap();
-                    image_frame.set_image(Some(image));
-                    image_frame.redraw();
-                    // On click there is a selection
-
-                    /* if world_state.circles.len() > 0 {
-                        let mut circle_index: usize = 0;
-                        for i in 0..world_state.circles.len() {
-                            if world_state.circles[i].is_selected {
-                                circle_index = i;
-                                break;
-                            }
-                        }
-                        world_state.circles[circle_index].accelerate_to_position(x as f32, y as f32);
-                        image_data = world_state.render();
-                        image = RgbImage::new(
-                            &image_data.data,
-                            image_data.width as i32,
-                            image_data.height as i32,
-                            ColorDepth::Rgb8,
-                        )
-                        .unwrap();
-                        image_frame.set_image(Some(image));
-                        image_frame.redraw();
-                    } */
                 }
                 Message::MouseDrag(x, y) => {
-                    // println!("There was Drag event at coordinates x={}, y={}", x, y);
-
                     let circle_index: usize = world_state.selected_circle_index;
 
                     if world_state.has_selected_circle {
-                        
-                        /* for i in 0..world_state.circles.len() {
-                            if world_state.circles[i].is_selected {
-                                circle_index = i;
-                                break;
-                            }
-                        } */
                         world_state.circles[circle_index].accelerate_to_position(x as f32, y as f32);
-                        image_data = world_state.render();
-                        image = RgbImage::new(
-                            &image_data.data,
-                            image_data.width as i32,
-                            image_data.height as i32,
-                            ColorDepth::Rgb8,
-                        )
-                        .unwrap();
-                        image_frame.set_image(Some(image));
-                        image_frame.redraw();
                     }
                 }
                 Message::MouseMove(x, y) => {
@@ -395,11 +328,24 @@ fn main() {
     }
 
     application.run().unwrap();
-
-
 }
 
-/* fn generate_image_background(width: i32, height: i32, colour: Colour) -> Vec<u8> {
+
+fn redraw_image(world_state: &mut State, image_frame: &mut frame::Frame) {
+    world_state.progress_one_step();
+    let image_data = world_state.get_rendered_view();
+    let image = RgbImage::new(
+        &image_data.data,
+        image_data.width as i32,
+        image_data.height as i32,
+        ColorDepth::Rgb8,
+    )
+    .unwrap();
+    image_frame.set_image(Some(image));
+    image_frame.redraw();
+}
+
+fn generate_image_background(width: i32, height: i32, colour: Colour) -> Vec<u8> {
     let num_pix: usize = (width * height) as usize;
 
     let data_array: Vec<u8>;
@@ -412,70 +358,4 @@ fn main() {
     }
 
     return data_array;
-} */
-
-fn place_square(image_data: &mut Vec<u8>, width: i32, x: i32, y: i32, size: i32, color: common_structs::RGBColor) {
-    let mut index_r: usize;
-
-    for j in (y - size / 2)..(y + size / 2) {
-        for i in (x - size / 2)..(x + size / 2) {
-            if i >= 0 && i < MAIN_IMAGE_WIDTH && j > 0 && j < MAIN_IMAGE_HEIGHT {
-                index_r = (width * 3 * j + i * 3) as usize;
-
-                image_data[index_r] = color.r;
-                image_data[index_r + 1] = color.g;
-                image_data[index_r + 2] = color.b;
-            }
-        }
-    }
-}
-
-fn radial_gradient(
-    image_data: &mut Vec<u8>,
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-    parameter: f32,
-    color: common_structs::RGBColor,
-) {
-    let mut index_r: usize;
-    let mut squared_distance: f32;
-    let mut brightness: f32;
-    let mut r_br: f32;
-    let mut g_br: f32;
-    let mut b_br: f32;
-
-    for j in 0..height {
-        for i in 0..width {
-            index_r = (width * 3 * j + i * 3) as usize;
-            squared_distance =
-                (((x - i) * (x - i) + (y - j) * (y - j)) as f32) / (parameter * parameter);
-            if squared_distance <= 1.0 {
-                brightness = 1.0;
-            } else {
-                brightness = 1.0 / squared_distance;
-            }
-
-            r_br = brightness * (color.r as f32) + (image_data[index_r] as f32);
-            g_br = brightness * (color.g as f32) + (image_data[index_r + 1] as f32);
-            b_br = brightness * (color.b as f32) + (image_data[index_r + 2] as f32);
-
-            if r_br > 255.0 {
-                r_br = 255.0;
-            }
-
-            if b_br > 255.0 {
-                b_br = 255.0;
-            }
-
-            if g_br > 255.0 {
-                g_br = 255.0;
-            }
-
-            image_data[index_r] = r_br as u8;
-            image_data[index_r + 1] = g_br as u8;
-            image_data[index_r + 2] = b_br as u8;
-        }
-    }
 }

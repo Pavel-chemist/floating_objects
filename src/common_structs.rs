@@ -5,6 +5,7 @@ pub struct RGBColor {
     pub b: u8,
 }
 
+// #[derive(Clone)]
 pub struct RGBCanvas {
     pub width: f32,
     pub height: f32,
@@ -17,6 +18,20 @@ impl RGBCanvas {
             width,
             height,
             data: vec![0; (width * height * 3.0) as usize],
+        };
+    }
+
+    pub fn copy(&self) -> RGBCanvas {
+        let mut copied_data: Vec<u8> = vec![0; self.data.len()];
+
+        for i in 0..self.data.len() {
+            copied_data[i] = self.data[i];
+        }
+
+        return RGBCanvas {
+            width: self.width,
+            height: self.height,
+            data: copied_data,
         };
     }
 }

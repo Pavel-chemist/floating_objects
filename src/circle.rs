@@ -1,6 +1,7 @@
 // Circle struct with all its implementations
 
 use crate::common_structs::{RGBColor, RGBCanvas};
+use rand::Rng;
 
 #[derive(Clone)]
 pub struct Circle {
@@ -21,6 +22,8 @@ impl Circle {
         name: String,
         x_pos: f32,
         y_pos: f32,
+        x_vel: f32,
+        y_vel: f32,
         radius: f32,
         mut border_width: f32,
         mass: f32,
@@ -35,8 +38,8 @@ impl Circle {
             name,
             x_pos,
             y_pos,
-            x_vel: 0.0,
-            y_vel: 0.0,
+            x_vel,
+            y_vel,
             radius,
             border_width,
             body_color,
@@ -66,8 +69,8 @@ impl Circle {
     }
 
     pub fn accelerate_to_position(&mut self, new_x: f32, new_y: f32) {
-        self.x_vel += (new_x - self.x_pos);
-        self.y_vel += (new_y - self.y_pos);
+        self.x_vel = new_x - self.x_pos;
+        self.y_vel = new_y - self.y_pos;
 
         self.x_pos = new_x;
         self.y_pos = new_y;
