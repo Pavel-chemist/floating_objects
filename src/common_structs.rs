@@ -5,7 +5,6 @@ pub struct RGBColor {
     pub b: u8,
 }
 
-// #[derive(Clone)]
 pub struct RGBCanvas {
     pub width: f32,
     pub height: f32,

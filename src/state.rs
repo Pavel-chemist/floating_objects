@@ -32,7 +32,8 @@ impl State {
         }
 
         for i in 0..self.circles.len() {
-            self.circles[i].put_on_canvas(&mut rendered_scene);
+            // self.circles[i].put_on_canvas(&mut rendered_scene);
+            self.circles[i].put_on_canvas_smoothed(&mut rendered_scene);
         }
 
         return rendered_scene;
@@ -109,10 +110,6 @@ impl State {
                 self.height,
             );
         }
-    }
-
-    fn get_background(&self) -> &Vec<u8> {
-        return &self.background;
     }
 
     fn create_background(width: i32, height: i32) -> Vec<u8>{
