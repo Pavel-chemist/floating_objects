@@ -63,9 +63,44 @@ impl Circle {
         }
     }
 
-    pub fn move_circle(&mut self) {
-        self.x_pos += self.x_vel;
-        self.y_pos += self.y_vel;
+    pub fn move_circle(&mut self, x_range_start: f32, x_range_end: f32, y_range_start: f32, y_range_end: f32) {
+        
+        if self.x_pos + self.x_vel <= x_range_start + self.radius {
+
+            // when touching start of range, calculate reflection    
+            self.x_pos = 2.0 * self.radius - self.x_pos - self.x_vel;
+            self.x_vel = -self.x_vel;
+
+        } else if self.x_pos + self.x_vel >= x_range_end - self.radius {
+
+            // when touching end of range, calculate reflection
+            self.x_pos = 2.0 * x_range_end - 2.0 * self.radius - self.x_pos - self.x_vel;
+            self.x_vel = -self.x_vel;
+
+        } else {
+            
+            // when in range, just proceed as always
+            self.x_pos += self.x_vel;
+        }
+
+    
+        if self.y_pos + self.y_vel <= y_range_start + self.radius {
+
+            // when touching start of range, calculate reflection    
+            self.y_pos = 2.0 * self.radius - self.y_pos - self.y_vel;
+            self.y_vel = -self.y_vel;
+
+        } else if self.y_pos + self.y_vel >= y_range_end - self.radius {
+
+            // when touching end of range, calculate reflection
+            self.y_pos = 2.0 * y_range_end - 2.0 * self.radius - self.y_pos - self.y_vel;
+            self.y_vel = -self.y_vel;
+
+        } else {
+            
+            // when in range, just proceed as always
+            self.y_pos += self.y_vel;
+        }
     }
 
     pub fn accelerate_to_position(&mut self, new_x: f32, new_y: f32) {

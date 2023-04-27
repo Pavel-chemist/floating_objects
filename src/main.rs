@@ -15,14 +15,15 @@ mod state;
 mod circle;
 
 const WIND_LABEL: &str = "Floating Objects";
-// const WIND_WIDTH: i32 = 1820;
-const WIND_WIDTH: i32 = 800;
-// const WIND_HEIGHT: i32 = 1000;
-const WIND_HEIGHT: i32 = 600;
+const WIND_WIDTH: i32 = 1820;
+// const WIND_WIDTH: i32 = 800;
+const WIND_HEIGHT: i32 = 1000;
+// const WIND_HEIGHT: i32 = 600;
 // const MAIN_IMAGE_WIDTH: i32 = 940;
-const MAIN_IMAGE_WIDTH: i32 = 512;
-// const MAIN_IMAGE_HEIGHT: i32 = 940;
-const MAIN_IMAGE_HEIGHT: i32 = 512;
+const MAIN_IMAGE_WIDTH: i32 = 1560;
+// const MAIN_IMAGE_WIDTH: i32 = 512;
+const MAIN_IMAGE_HEIGHT: i32 = 940;
+// const MAIN_IMAGE_HEIGHT: i32 = 512;
 const MAIN_IMAGE_FRAME_THICKNESS: i32 = 4;
 const MAIN_IMAGE_X_POS: i32 = 10;
 const MAIN_IMAGE_Y_POS: i32 = 10;
@@ -82,6 +83,7 @@ fn main() {
         );
     framing_frame.set_frame(FrameType::EngravedBox);
 
+    // the image_frame is used to show generated image
     let mut image_frame = frame::Frame::default()
         .with_pos(
             MAIN_IMAGE_X_POS + MAIN_IMAGE_FRAME_THICKNESS,
@@ -89,7 +91,7 @@ fn main() {
         )
         .with_size(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT);
 
-    // this should intercept mouse events
+    // the ghost_frame acts as mouse events interceptor
     let mut ghost_frame = frame::Frame::default()
         .with_pos(
             MAIN_IMAGE_X_POS + MAIN_IMAGE_FRAME_THICKNESS,
@@ -164,33 +166,6 @@ fn main() {
     b_black.set_color(Color::Black);
     b_black.emit(s.clone(), Message::BBev);
 
-    /* let mut b_step = button::Button::new(
-        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 200,
-        200,
-        40,
-        "Progress one time step",
-    );
-    b_step.emit(s.clone(), Message::Step);
-
-    let mut b_start = button::Button::new(
-        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 250,
-        200,
-        40,
-        "Start animation",
-    );
-    b_start.emit(s.clone(), Message::Start);
-
-    let mut b_stop = button::Button::new(
-        MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
-        MENU_HEIGHT + MAIN_IMAGE_Y_POS + 300,
-        200,
-        40,
-        "Stop animation",
-    );
-    b_stop.emit(s.clone(), Message::Stop); */
-
     wind.end();
     wind.show();
 
@@ -199,7 +174,7 @@ fn main() {
     let callback = move |handle| {
         callback_sender.send(Message::Tick);
         
-        app::repeat_timeout3(0.033, handle);
+        app::repeat_timeout3(0.016667, handle);
     };
     
 

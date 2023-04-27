@@ -7,7 +7,6 @@ pub struct State {
     pub width: f32, //world width
     pub height: f32, //world height
     background: Vec<u8>, //array containing rgb values for background image
-    rendered_scene: RGBCanvas,
     pub circles: Vec<Circle>,
     pub selected_circle_index: usize,
     pub has_selected_circle: bool,
@@ -19,27 +18,24 @@ impl State {
             width: width as f32,
             height: height as f32,
             background: State::create_background(width, height),
-            rendered_scene: RGBCanvas::new(width as f32, height as f32),
             circles: Vec::<Circle>::new(),
             selected_circle_index: 0,
             has_selected_circle: false,
         };
     }
 
-    fn render(&mut self) {
-        self.rendered_scene = RGBCanvas::new(self.width, self.height);
+    pub fn get_rendered_view(&self) -> RGBCanvas {
+        let mut rendered_scene = RGBCanvas::new(self.width, self.height);
         
         for i in 0..self.background.len() {
-            self.rendered_scene.data[i] = self.background[i];
+            rendered_scene.data[i] = self.background[i];
         }
 
         for i in 0..self.circles.len() {
-            self.circles[i].put_on_canvas(&mut self.rendered_scene);
+            self.circles[i].put_on_canvas(&mut rendered_scene);
         }
-    }
 
-    pub fn get_rendered_view(&self) -> RGBCanvas {
-        return self.rendered_scene.copy();
+        return rendered_scene;
     }
 
 /////////////////////////////////////////////////////////
@@ -47,8 +43,6 @@ impl State {
     pub fn add_circle(&mut self, circle: Circle) {
         self.circles.push(circle);
         self.has_selected_circle = false;
-
-        self.render();
     }
 
     pub fn select_circle(&mut self, x: i32, y: i32) {
@@ -57,7 +51,6 @@ impl State {
 
         let mut is_selected: bool = false;
         let mut selected_index: usize = 0;
-        // let
         
         for (index, circle) in self.circles.iter().enumerate().rev() {
             if (x_pos - circle.x_pos) * (x_pos - circle.x_pos) < circle.radius * circle.radius
@@ -81,8 +74,6 @@ impl State {
         }
         
         self.has_selected_circle = is_selected;
-
-        self.render();
     }
 
     pub fn remove_circle(&mut self) {
@@ -99,7 +90,6 @@ impl State {
         }
         
         self.has_selected_circle = false;
-        self.render();
     }
 
     pub fn replace_background(&mut self, new_background: Vec<u8>) {
@@ -112,10 +102,13 @@ impl State {
 
     pub fn progress_one_step(&mut self) {
         for i in 0..self.circles.len() {
-            self.circles[i].move_circle();
+            self.circles[i].move_circle(
+                0.0,
+                self.width,
+                0.0,
+                self.height,
+            );
         }
-
-        self.render();
     }
 
     fn get_background(&self) -> &Vec<u8> {
