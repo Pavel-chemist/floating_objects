@@ -1,6 +1,8 @@
 // here, the object describing the state
 
-use crate::{circle::Circle, common_structs::RGBCanvas};
+use rand::{random, Rng};
+
+use crate::{circle::Circle, common_structs::{RGBCanvas, RGBColor}};
 
 
 pub struct State {
@@ -42,8 +44,43 @@ impl State {
 /////////////////////////////////////////////////////////
     
     pub fn add_circle(&mut self, circle: Circle) {
-        self.circles.push(circle);
-        self.has_selected_circle = false;
+        // ensure that new circle is not on top of another
+        let is_on_top = Circle::check_on_top(&circle, &self.circles, 999999);
+
+        if !is_on_top {
+            self.circles.push(circle);
+        } else {
+            println!("trying to put circle on top of another one");
+        }
+    }
+
+    pub fn add_random_circle_at_coords(&mut self, x: i32, y: i32) {
+        let mut rng = rand::thread_rng();
+
+        let mut new_circle: Circle = Circle::new(
+            String::from("Click_Circle"), 
+            x as f32,
+            y as f32,
+            rng.gen_range(-2.0..2.0),
+            rng.gen_range(-2.0..2.0),
+            rng.gen_range(15.0..25.0),
+            rng.gen_range(3.0..12.0),
+            1.0,
+            RGBColor {
+                r: random(),
+                g: random(),
+                b: random(),
+            },
+            RGBColor {
+                r: random(),
+                g: random(),
+                b: random(),
+            },
+        );
+
+        new_circle.mass = new_circle.radius * new_circle.radius;
+
+        self.add_circle(new_circle);
     }
 
     pub fn select_circle(&mut self, x: i32, y: i32) {
@@ -109,6 +146,16 @@ impl State {
                 0.0,
                 self.height,
             );
+        }
+
+        let mut cloned_circles_array: Vec<Circle> = Vec::with_capacity(self.circles.len());
+
+        for i in 0..self.circles.len() {
+            cloned_circles_array.push(self.circles[i].clone());
+        }
+
+        for i in 0..self.circles.len() {
+            self.circles[i].collide_with_other_circles(&cloned_circles_array, i);
         }
     }
 

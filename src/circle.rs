@@ -7,13 +7,14 @@ pub struct Circle {
     pub name: String,
     pub x_pos: f32,
     pub y_pos: f32,
-    x_vel: f32,
-    y_vel: f32,
+    pub x_vel: f32,
+    pub y_vel: f32,
     pub radius: f32,
     border_width: f32,
     body_color: RGBColor,
     border_color: RGBColor,
-    mass: f32,
+    pub mass: f32,
+    is_selected: bool,
 }
 
 impl Circle {
@@ -44,6 +45,7 @@ impl Circle {
             body_color,
             border_color,
             mass,
+            is_selected: false,
         }
     }
 
@@ -59,6 +61,7 @@ impl Circle {
             body_color: self.body_color,
             border_color: self.border_color,
             mass: self.mass,
+            is_selected: false,
         }
     }
 
@@ -100,6 +103,62 @@ impl Circle {
             // when in range, just proceed as always
             self.y_pos += self.y_vel;
         }
+    }
+
+    pub fn collide_with_other_circles(&mut self, circles_array: &Vec<Circle>, own_index: usize) {
+        let mut distance_squared: f32;
+        let mut sum_radii_squared: f32;
+
+        // let mut self_momentum: f32 = self.mass * f32::sqrt(self.x_vel * self.x_vel + self.y_vel * self.y_vel);
+        // let mut collider_momentum: f32;
+        // let mut collision_point_x: f32;
+        // let mut collision_point_y: f32;
+        let mut rel_v_x: f32;
+        let mut rel_v_y: f32;
+        // let mut abs
+
+        for i in 0..circles_array.len() {
+            if i != own_index {
+                distance_squared = (circles_array[i].x_pos - self.x_pos) * (circles_array[i].x_pos - self.x_pos) + (circles_array[i].y_pos - self.y_pos) * (circles_array[i].y_pos - self.y_pos);
+
+                sum_radii_squared = (circles_array[i].radius +  self.radius) * (circles_array[i].radius +  self.radius);
+    
+                if distance_squared < sum_radii_squared {
+                    // collider_momentum = circles_array[i].mass *  f32::sqrt(circles_array[i].x_vel * circles_array[i].x_vel + circles_array[i].y_vel * circles_array[i].y_vel);
+
+                // these are relative velocity of collider  
+                    rel_v_x = circles_array[i].x_vel - self.x_vel;
+                    rel_v_y = circles_array[i].y_vel - self.y_vel;
+
+                    self.x_vel += rel_v_x * circles_array[i].mass / self.mass;
+                    self.y_vel += rel_v_y * circles_array[i].mass / self.mass;
+                }
+            }
+        }
+    }
+
+
+
+    pub fn check_on_top(circle: &Circle, circles_array: &Vec<Circle>, own_index: usize) -> bool {
+        let mut is_on_top: bool = false;
+        let mut distance_squared: f32;
+        let mut sum_radii_squared: f32;
+
+        for i in 0..circles_array.len() {
+            if i != own_index {
+                distance_squared = (circles_array[i].x_pos - circle.x_pos) * (circles_array[i].x_pos - circle.x_pos) + (circles_array[i].y_pos - circle.y_pos) * (circles_array[i].y_pos - circle.y_pos);
+
+                sum_radii_squared = (circles_array[i].radius +  circle.radius) * (circles_array[i].radius +  circle.radius);
+    
+                if distance_squared < sum_radii_squared {
+                    is_on_top = true;
+    
+                    break;
+                }
+            }
+        }
+
+        return is_on_top;
     }
 
     pub fn accelerate_to_position(&mut self, new_x: f32, new_y: f32) {
