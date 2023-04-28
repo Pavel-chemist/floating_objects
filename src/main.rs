@@ -1,5 +1,5 @@
 use fltk::{
-    app::{self, App},
+    app::{self, App, MouseButton},
     enums::{self, Color, ColorDepth, Event, FrameType},
     image::RgbImage,
     prelude::*,
@@ -38,10 +38,10 @@ enum Message {
     BBev,
     GBev,
     LGBev,
-    MouseDown(i32, i32),
+    MouseDown(i32, i32, MouseButton),
     MouseDrag(i32, i32),
     MouseMove(i32, i32),
-    MouseReleased(i32, i32),
+    MouseReleased(i32, i32, MouseButton),
     Tick,
 }
 
@@ -114,7 +114,7 @@ fn main() {
         MENU_HEIGHT + MAIN_IMAGE_Y_POS + 50,
         200,
         40,
-        "Click to remove circle",
+        "Click to remove circles",
     );
     b_remove_circle.emit(s.clone(), Message::RemoveCircleButEv);
 
@@ -166,6 +166,14 @@ fn main() {
     b_black.set_color(Color::Black);
     b_black.emit(s.clone(), Message::BBev);
 
+    let mut _total_momentum_display_frame = frame::Frame::default()
+        .with_pos(
+            MAIN_IMAGE_WIDTH + MAIN_IMAGE_X_POS + 20,
+            MENU_HEIGHT + MAIN_IMAGE_Y_POS + 200,
+        )
+        .with_size(200, 40)
+        .with_label("");
+
     wind.end();
     wind.show();
 
@@ -184,7 +192,8 @@ fn main() {
             Event::Push => {
                 let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
                 let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-                ghost_frame_handle_sender.send(Message::MouseDown(x, y));
+                let button = app::event_mouse_button();
+                ghost_frame_handle_sender.send(Message::MouseDown(x, y, button));
                 true
             }
             Event::Drag => {
@@ -198,7 +207,8 @@ fn main() {
             Event::Released => {
                 let x = app::event_x() - MAIN_IMAGE_X_POS - MAIN_IMAGE_FRAME_THICKNESS;
                 let y = app::event_y() - MAIN_IMAGE_Y_POS - MAIN_IMAGE_FRAME_THICKNESS - MENU_HEIGHT;
-                ghost_frame_handle_sender.send(Message::MouseReleased(x, y));
+                let button = app::event_mouse_button();
+                ghost_frame_handle_sender.send(Message::MouseReleased(x, y, button));
                 true
             }
             Event::Move => {
@@ -227,31 +237,12 @@ fn main() {
                 Message::AddCircleButEv => {
                     println!("Adding circle...");
 
-                    world_state.add_circle(Circle::new(
-                        String::from("circle"),
-                        (MAIN_IMAGE_WIDTH / 2) as f32,
-                        (MAIN_IMAGE_HEIGHT / 2) as f32,
-                        rng.gen_range(-2.0..2.0),
-                        rng.gen_range(-2.0..2.0),
-                        rng.gen_range(15.0..25.0),
-                        rng.gen_range(3.0..12.0),
-                        1.0,
-                        RGBColor {
-                            r: random(),
-                            g: random(),
-                            b: random(),
-                        },
-                        RGBColor {
-                            r: random(),
-                            g: random(),
-                            b: random(),
-                        },
-                    ));
+                    world_state.add_random_circle_at_coords(MAIN_IMAGE_WIDTH / 2, MAIN_IMAGE_HEIGHT / 2);
                 }
                 Message::RemoveCircleButEv => {
                     println!("Removing circle...");
 
-                    world_state.remove_circle();
+                    world_state.circles = Vec::new();
                 }
                 Message::WBev => {
                     println!("Change background to White.");
@@ -279,11 +270,18 @@ fn main() {
                 }
                 Message::Tick => {
                     redraw_image(&mut world_state, &mut image_frame);
+                    update_total_momentum_display(&world_state, &mut _total_momentum_display_frame);
                 }
-                Message::MouseDown(x, y) => {
+                Message::MouseDown(x, y, button) => {
                     println!("The image was clicked at coordinates x={}, y={}", x, y);
 
-                    world_state.select_circle(x, y);
+                    if button == MouseButton::Right {
+                        world_state.select_circle(x, y);
+                    }
+                    
+                    if button == MouseButton::Left {
+                        world_state.add_random_circle_at_coords(x, y);
+                    }
                 }
                 Message::MouseDrag(x, y) => {
                     let circle_index: usize = world_state.selected_circle_index;
@@ -318,6 +316,19 @@ fn redraw_image(world_state: &mut State, image_frame: &mut frame::Frame) {
     .unwrap();
     image_frame.set_image(Some(image));
     image_frame.redraw();
+}
+
+fn update_total_momentum_display(world_state: & State, display_frame: &mut frame::Frame) {
+    let mut total_momentum: f32 = 0.0;
+    let mut single_circle_momentum: f32;
+
+    for i in 0..world_state.circles.len() {
+        single_circle_momentum = f32::sqrt(world_state.circles[i].x_vel * world_state.circles[i].x_vel + world_state.circles[i].y_vel * world_state.circles[i].y_vel) * world_state.circles[i].mass;
+
+        total_momentum += single_circle_momentum;
+    }
+
+    display_frame.set_label(&(String::from("Total momentum is:\n") + &total_momentum.to_string()));
 }
 
 fn generate_image_background(width: i32, height: i32, colour: Colour) -> Vec<u8> {
