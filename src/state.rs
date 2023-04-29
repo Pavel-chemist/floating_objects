@@ -6,23 +6,25 @@ use crate::{circle::Circle, common_structs::{RGBCanvas, RGBColor}};
 
 
 pub struct State {
-    pub width: f32, //world width
-    pub height: f32, //world height
+    pub width: f64, //world width
+    pub height: f64, //world height
     background: Vec<u8>, //array containing rgb values for background image
     pub circles: Vec<Circle>,
     pub selected_circle_index: usize,
     pub has_selected_circle: bool,
+    pub global_time: usize,
 }
 
 impl State {
     pub fn new(width: i32, height: i32) -> State {
         return State {
-            width: width as f32,
-            height: height as f32,
+            width: width as f64,
+            height: height as f64,
             background: State::create_background(width, height),
             circles: Vec::<Circle>::new(),
             selected_circle_index: 0,
             has_selected_circle: false,
+            global_time: 0,
         };
     }
 
@@ -54,17 +56,17 @@ impl State {
         }
     }
 
-    pub fn add_random_circle_at_coords(&mut self, x: i32, y: i32) {
+    pub fn add_random_circle_at_coords(&mut self, x: i32, y: i32, x_vel: f64, y_vel: f64) {
         let mut rng = rand::thread_rng();
 
         let mut new_circle: Circle = Circle::new(
-            String::from("Click_Circle"), 
-            x as f32,
-            y as f32,
-            rng.gen_range(-2.0..2.0),
-            rng.gen_range(-2.0..2.0),
+            String::from("Circle"), 
+            x as f64,
+            y as f64,
+            x_vel,
+            y_vel,
             rng.gen_range(15.0..25.0),
-            rng.gen_range(3.0..12.0),
+            rng.gen_range(3.0..13.0),
             1.0,
             RGBColor {
                 r: random(),
@@ -84,8 +86,8 @@ impl State {
     }
 
     pub fn select_circle(&mut self, x: i32, y: i32) {
-        let x_pos: f32 = x as f32;
-        let y_pos: f32 = y as f32;
+        let x_pos: f64 = x as f64;
+        let y_pos: f64 = y as f64;
 
         let mut is_selected: bool = false;
         let mut selected_index: usize = 0;
@@ -139,6 +141,8 @@ impl State {
     }
 
     pub fn progress_one_step(&mut self) {
+        self.global_time += 1;
+
         for i in 0..self.circles.len() {
             self.circles[i].move_circle(
                 0.0,
@@ -147,6 +151,8 @@ impl State {
                 self.height,
             );
         }
+
+        self.enumerate_collided_pairs();
 
         let mut cloned_circles_array: Vec<Circle> = Vec::with_capacity(self.circles.len());
 
@@ -157,6 +163,56 @@ impl State {
         for i in 0..self.circles.len() {
             self.circles[i].collide_with_other_circles(&cloned_circles_array, i);
         }
+    }
+
+    fn enumerate_collided_pairs(&self) {
+        struct Pair {
+            i: usize,
+            j: usize,
+        }
+        // check for collision
+        let mut distance_squared: f64;
+        let mut sum_radii_squared: f64;
+        let mut collided_pairs_list: Vec<Pair> = Vec::new();
+
+        for j in 0..self.circles.len() {
+            for i in j..self.circles.len() {
+                if i != j {
+                    distance_squared = 
+                    (self.circles[i].x_pos - self.circles[j].x_pos) * (self.circles[i].x_pos - self.circles[j].x_pos) +
+                    (self.circles[i].y_pos - self.circles[j].y_pos) * (self.circles[i].y_pos - self.circles[j].y_pos);
+    
+                    sum_radii_squared = 
+                        (self.circles[i].radius +  self.circles[j].radius) * 
+                        (self.circles[i].radius +  self.circles[j].radius);
+    
+                    if distance_squared < sum_radii_squared {
+                        collided_pairs_list.push(Pair{i, j});
+                    }
+                }
+            }
+        }
+
+        if collided_pairs_list.len() > 0 {
+            print!("{:>5}: ", self.global_time);
+            for i in 0..collided_pairs_list.len() {
+                print!("{:>3} <->{:>3};", collided_pairs_list[i].i, collided_pairs_list[i].j);
+            };
+            println!("");
+        }
+    }
+
+    pub fn get_total_momentum(&self) -> f64 {
+        let mut total_momentum: f64 = 0.0;
+        let mut single_circle_momentum: f64;
+
+        for i in 0..self.circles.len() {
+            single_circle_momentum = f64::sqrt(self.circles[i].x_vel * self.circles[i].x_vel + self.circles[i].y_vel * self.circles[i].y_vel) * self.circles[i].mass;
+
+            total_momentum += single_circle_momentum;
+        }
+
+        return total_momentum;
     }
 
     fn create_background(width: i32, height: i32) -> Vec<u8>{

@@ -1,3 +1,4 @@
+use common_structs::{Coord, RGBCanvas};
 use fltk::{
     app::{self, App, MouseButton},
     enums::{self, Color, ColorDepth, Event, FrameType},
@@ -52,12 +53,13 @@ enum Colour {
     White,
 }
 
-
 fn main() {
-    let mut rng = rand::thread_rng();
     let mut world_state: State = state::State::new(MAIN_IMAGE_WIDTH, MAIN_IMAGE_HEIGHT);
 
     let application: App = app::App::default();
+    let mut is_added_circle: bool = false;
+    let mut new_circle_coord: Coord = Coord::new(0.0, 0.0);
+    let mut cursor_coord: Coord = Coord::new(0.0, 0.0);
 
     let (s, r) = app::channel();
 
@@ -237,7 +239,7 @@ fn main() {
                 Message::AddCircleButEv => {
                     println!("Adding circle...");
 
-                    world_state.add_random_circle_at_coords(MAIN_IMAGE_WIDTH / 2, MAIN_IMAGE_HEIGHT / 2);
+                    world_state.add_random_circle_at_coords(MAIN_IMAGE_WIDTH / 2, MAIN_IMAGE_HEIGHT / 2, 0.0, 0.0);
                 }
                 Message::RemoveCircleButEv => {
                     println!("Removing circle...");
@@ -269,8 +271,15 @@ fn main() {
                     );
                 }
                 Message::Tick => {
-                    redraw_image(&mut world_state, &mut image_frame);
-                    update_total_momentum_display(&world_state, &mut _total_momentum_display_frame);
+                    redraw_image(
+                        &mut world_state,
+                        &mut image_frame,
+                        is_added_circle,
+                        &new_circle_coord,
+                        &cursor_coord,
+                    );
+                    
+                    _total_momentum_display_frame.set_label(&(String::from("Total momentum is:\n") + &format!("{:>10.3}", world_state.get_total_momentum())));
                 }
                 Message::MouseDown(x, y, button) => {
                     println!("The image was clicked at coordinates x={}, y={}", x, y);
@@ -280,18 +289,35 @@ fn main() {
                     }
                     
                     if button == MouseButton::Left {
-                        world_state.add_random_circle_at_coords(x, y);
+                        if !is_added_circle {
+                            world_state.add_random_circle_at_coords(x, y, 0.0, 0.0);
+                            new_circle_coord.set_i(x, y);
+                            cursor_coord.set_i(x, y);
+                            is_added_circle = true;
+                        } else {
+                            // let new_coord: Coord = Coord::new_i(x, y);
+                            cursor_coord.set_i(x, y);
+                            let index: usize = world_state.circles.len()-1;
+
+                            world_state.circles[index].x_vel = (cursor_coord.x - new_circle_coord.x) / 100.0;
+                            world_state.circles[index].y_vel = (cursor_coord.y - new_circle_coord.y) / 100.0;
+                            is_added_circle = false;
+                        }
                     }
                 }
                 Message::MouseDrag(x, y) => {
                     let circle_index: usize = world_state.selected_circle_index;
 
                     if world_state.has_selected_circle {
-                        world_state.circles[circle_index].accelerate_to_position(x as f32, y as f32);
+                        world_state.circles[circle_index].accelerate_to_position(x as f64, y as f64);
                     }
                 }
                 Message::MouseMove(x, y) => {
                     // println!("There was Move event at coordinates x={}, y={}", x, y);
+                    if is_added_circle {
+                        // draw a line from circle center to current mouse cursor
+                        cursor_coord.set_i(x, y);
+                    }
                 } 
                 _ => {
                     println!("yet undefined event");
@@ -304,9 +330,13 @@ fn main() {
 }
 
 
-fn redraw_image(world_state: &mut State, image_frame: &mut frame::Frame) {
+fn redraw_image(world_state: &mut State, image_frame: &mut frame::Frame, is_line: bool, start: &Coord, end: &Coord) {
     world_state.progress_one_step();
-    let image_data = world_state.get_rendered_view();
+    let mut image_data = world_state.get_rendered_view();
+    if is_line {
+        draw_line(&mut image_data, start, end);
+    }
+
     let image = RgbImage::new(
         &image_data.data,
         image_data.width as i32,
@@ -316,19 +346,6 @@ fn redraw_image(world_state: &mut State, image_frame: &mut frame::Frame) {
     .unwrap();
     image_frame.set_image(Some(image));
     image_frame.redraw();
-}
-
-fn update_total_momentum_display(world_state: & State, display_frame: &mut frame::Frame) {
-    let mut total_momentum: f32 = 0.0;
-    let mut single_circle_momentum: f32;
-
-    for i in 0..world_state.circles.len() {
-        single_circle_momentum = f32::sqrt(world_state.circles[i].x_vel * world_state.circles[i].x_vel + world_state.circles[i].y_vel * world_state.circles[i].y_vel) * world_state.circles[i].mass;
-
-        total_momentum += single_circle_momentum;
-    }
-
-    display_frame.set_label(&(String::from("Total momentum is:\n") + &total_momentum.to_string()));
 }
 
 fn generate_image_background(width: i32, height: i32, colour: Colour) -> Vec<u8> {
@@ -344,4 +361,46 @@ fn generate_image_background(width: i32, height: i32, colour: Colour) -> Vec<u8>
     }
 
     return data_array;
+}
+
+fn draw_line(image_data: &mut RGBCanvas, start: &Coord, end: &Coord) {
+    let width: i32 = image_data.width as i32;
+    
+    let x_s: i32 = start.x as i32;
+    let y_s: i32 = start.y as i32;
+    
+    let delta_x: f64 = end.x - start.x;
+    let delta_y: f64 = end.y - start.y;
+    let t: f64;
+
+    let step_x: f64;
+    let step_y: f64;
+
+    let mut x: i32;
+    let mut y: i32;
+
+    if delta_x > 0.0 && delta_y > 0.0 {
+        t = delta_x + delta_y;
+    } else if delta_x > 0.0 && delta_y < 0.0 {
+        t = delta_x - delta_y;
+    } else if delta_x < 0.0 && delta_y > 0.0 {
+        t = - delta_x + delta_y;
+    } else if delta_x < 0.0 && delta_y < 0.0 {
+        t = - delta_x - delta_y;
+    } else {
+        t = 1.0;
+    }
+
+    step_x = delta_x / t;
+    step_y = delta_y / t;
+
+    for t in 0..(t as usize + 1) {
+        x = x_s + (t as f64 * step_x) as i32;
+        y = y_s + (t as f64 * step_y) as i32;
+
+        image_data.data[(y * width * 3 + x * 3 + 0) as usize] = 255;
+        image_data.data[(y * width * 3 + x * 3 + 1) as usize] = 255;
+        image_data.data[(y * width * 3 + x * 3 + 2) as usize] = 255;
+    }
+
 }
