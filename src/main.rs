@@ -6,10 +6,8 @@ use fltk::{
     prelude::*,
     *,
 };
-use rand::{random, Rng};
-use state::State;
 
-use crate::{circle::Circle, common_structs::RGBColor};
+use state::State;
 
 mod common_structs;
 mod state;
